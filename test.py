@@ -1,5 +1,5 @@
 # Copyright (C) 2018 Elvis Yu-Jing Lin <elvisyjlin@gmail.com>
-# 
+#
 # This work is licensed under the MIT License. To view a copy of this license,
 # visit https://opensource.org/licenses/MIT.
 
@@ -22,21 +22,24 @@ from utils import find_model
 
 def parse(args=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment_name', dest='experiment_name', required=True)
-    parser.add_argument('--test_int', dest='test_int', type=float, default=1.0)
-    parser.add_argument('--num_test', dest='num_test', type=int)
-    parser.add_argument('--load_epoch', dest='load_epoch', type=str, default='latest')
-    parser.add_argument('--custom_img', action='store_true')
-    parser.add_argument('--custom_data', type=str, default='./data/custom')
-    parser.add_argument('--custom_attr', type=str, default='./data/list_attr_custom.txt')
-    parser.add_argument('--gpu', action='store_true')
-    parser.add_argument('--multi_gpu', action='store_true')
+    parser.add_argument("--experiment_name", dest="experiment_name", required=True)
+    parser.add_argument("--test_int", dest="test_int", type=float, default=1.0)
+    parser.add_argument("--num_test", dest="num_test", type=int)
+    parser.add_argument("--load_epoch", dest="load_epoch", type=str, default="latest")
+    parser.add_argument("--custom_img", action="store_true")
+    parser.add_argument("--custom_data", type=str, default="./data/custom")
+    parser.add_argument(
+        "--custom_attr", type=str, default="./data/list_attr_custom.txt"
+    )
+    parser.add_argument("--gpu", action="store_true")
+    parser.add_argument("--multi_gpu", action="store_true")
     return parser.parse_args(args)
+
 
 args_ = parse()
 print(args_)
 
-with open(join('output', args_.experiment_name, 'setting.txt'), 'r') as f:
+with open(join("output", args_.experiment_name, "setting.txt"), "r") as f:
     args = json.load(f, object_hook=lambda d: argparse.Namespace(**d))
 
 args.test_int = args_.test_int
@@ -54,41 +57,59 @@ print(args)
 
 
 if args.custom_img:
-    output_path = join('output', args.experiment_name, 'custom_testing')
+    output_path = join("output", args.experiment_name, "custom_testing")
     from data import Custom
+
     test_dataset = Custom(args.custom_data, args.custom_attr, args.img_size, args.attrs)
 else:
-    output_path = join('output', args.experiment_name, 'sample_testing')
-    if args.data == 'CelebA':
+    output_path = join("output", args.experiment_name, "sample_testing")
+    if args.data == "CelebA":
         from data import CelebA
-        test_dataset = CelebA(args.data_path, args.attr_path, args.img_size, 'test', args.attrs)
-    if args.data == 'CelebA-HQ':
+
+        test_dataset = CelebA(
+            args.data_path, args.attr_path, args.img_size, "test", args.attrs
+        )
+    if args.data == "CelebA-HQ":
         from data import CelebA_HQ
-        test_dataset = CelebA_HQ(args.data_path, args.attr_path, args.image_list_path, args.img_size, 'test', args.attrs)
+
+        test_dataset = CelebA_HQ(
+            args.data_path,
+            args.attr_path,
+            args.image_list_path,
+            args.img_size,
+            "test",
+            args.attrs,
+        )
 os.makedirs(output_path, exist_ok=True)
+
 test_dataloader = data.DataLoader(
-    test_dataset, batch_size=1, num_workers=args.num_workers,
-    shuffle=False, drop_last=False
+    test_dataset,
+    batch_size=1,
+    num_workers=args.num_workers,
+    shuffle=False,
+    drop_last=False,
 )
 if args.num_test is None:
-    print('Testing images:', len(test_dataset))
+    print("Testing images:", len(test_dataset))
 else:
-    print('Testing images:', min(len(test_dataset), args.num_test))
+    print("Testing images:", min(len(test_dataset), args.num_test))
 
 
 attgan = AttGAN(args)
-attgan.load(find_model(join('output', args.experiment_name, 'checkpoint'), args.load_epoch))
+attgan.load(
+    find_model(join("output", args.experiment_name, "checkpoint"), args.load_epoch)
+)
 progressbar = Progressbar()
 
 attgan.eval()
 for idx, (img_a, att_a) in enumerate(test_dataloader):
     if args.num_test is not None and idx == args.num_test:
         break
-    
+
     img_a = img_a.cuda() if args.gpu else img_a
     att_a = att_a.cuda() if args.gpu else att_a
     att_a = att_a.type(torch.float)
-    
+
     att_b_list = [att_a]
     for i in range(args.n_attrs):
         tmp = att_a.clone()
@@ -107,9 +128,12 @@ for idx, (img_a, att_a) in enumerate(test_dataloader):
         if args.custom_img:
             out_file = test_dataset.images[idx]
         else:
-            out_file = '{:06d}.jpg'.format(idx + 182638)
+            out_file = "{:06d}.jpg".format(idx + 200000)
         vutils.save_image(
-            samples, join(output_path, out_file),
-            nrow=1, normalize=True, value_range=(-1., 1.)
+            samples,
+            join(output_path, out_file),
+            nrow=1,
+            normalize=True,
+            value_range=(-1.0, 1.0),
         )
-        print('{:s} done!'.format(out_file))
+        print("{:s} done!".format(out_file))
